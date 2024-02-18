@@ -17,9 +17,13 @@ func main() {
 	b, _ := os.ReadFile("banner.txt")
 	fmt.Printf(string(b))
 
+	results := make(map[string][]CostcoResult)
+
 	for _, query := range SearchConfig.Queries {
 		slog.Info("Checking query", "query", query.Query, "price limit", query.PriceLimit)
 
-		GetCostcoResults(query)
+		results[query.Query] = GetCostcoResults(query)
 	}
+
+	SendEmail("Your costco search results", GenerateEmailHTML(results))
 }
