@@ -3,10 +3,36 @@ package main
 import (
 	"fmt"
 	"io"
+	"log/slog"
 	"net/http"
+	"strings"
+
+	"github.com/PuerkitoBio/goquery"
 )
 
 func GetCostcoResults(query Query) {
+	htmlBody := getHTMLBody(query)
+	defer htmlBody.Close()
+
+	doc, err := goquery.NewDocumentFromReader(htmlBody)
+
+	if err != nil {
+		panic(err)
+	}
+
+	doc.Find(".product").Each(func(i int, s *goquery.Selection) {
+		// For each item found, get the sku
+		sku, _ := s.Find("input[id^='product_sku_']").Attr("value")
+		name, _ := s.Find("input[id^='product_name_']").Attr("value")
+		price := strings.TrimSpace(s.Find(".price").Text())
+
+		image_url, _ := s.Find("img").Attr("src")
+
+		slog.Info("Found result", "looking for", query.Query, "found product", name, "sku", sku, "price", price, "image_url", image_url)
+	})
+}
+
+func getHTMLBody(query Query) io.ReadCloser {
 	base_url := "https://www.costco.ca/CatalogSearch?keyword=%s&costcoprogramtypes=costco-grocery&dept=All&deliveryFacetFlag=true&refine=||item_program_eligibility-ShipIt||item_program_eligibility-2DayDelivery"
 
 	url := fmt.Sprintf(base_url, query.Query)
@@ -18,8 +44,7 @@ func GetCostcoResults(query Query) {
 	req, err := http.NewRequest("GET", url, nil)
 
 	if err != nil {
-		fmt.Println("Error making GET request:", err)
-		return
+		panic(err)
 	}
 
 	// costco blocks you if you do not use a human looking UA
@@ -28,18 +53,8 @@ func GetCostcoResults(query Query) {
 	// Send the request using the client
 	resp, err := client.Do(req)
 	if err != nil {
-		fmt.Println("Error making request:", err)
-		return
-	}
-	defer resp.Body.Close()
-
-	// Read the response body
-	body, err := io.ReadAll(resp.Body)
-	if err != nil {
-		fmt.Println("Error reading response body:", err)
-		return
+		panic(err)
 	}
 
-	// Print the response body
-	fmt.Println(string(body))
+	return resp.Body
 }
