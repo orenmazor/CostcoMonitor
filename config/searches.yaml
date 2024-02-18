@@ -1,0 +1,6 @@
+---
+queries:
+  - query: sardines
+    price_limit: 50
+  - query: lentils
+    price_limit: 5
